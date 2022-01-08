@@ -1,0 +1,24 @@
+{
+  "name": "nft-contracts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "truffle test",
+    "compile": "truffle compile",
+    "coverage": "truffle run coverage --network development",
+    "ganache": "ganache-cli -e 10000000000000 -a 100",
+    "ganache:matic": "ganache-cli --fork https://apis.ankr.com/c56aa5f49b91442e9c183196f189c383/06afd52639dcbd117afe0930f7ae4a5e/polygon/full/main -a 100 -e 900000000000000000"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.4.1",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "@uniswap/lib": "^4.0.1-alpha",
+    "ganache": "^6.4.5",
+    "ganache-cli": "^6.12.2",
+    "solidity-coverage": "^0.7.17",
+    "truffle": "^5.4.26",
+    "truffle-flattener": "^1.5.0",
+    "web3": "^1.6.1"
+  }
+}
