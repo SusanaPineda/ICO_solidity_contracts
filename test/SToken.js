@@ -325,5 +325,123 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
             maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
             maxTokensPrivateSaleCount.should.be.bignumber.equal(new BN("10"));
         })
+
+        it("safePublicMint", async () =>{
+            // all ok
+            const currentTimestamp = await time.latest();
+            const price = await STokencontract.publicPrice();
+            let amount = new BN("5");
+            let totalCost = price.mul(amount);
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("1000")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.sub(new BN("100")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await STokencontract.safePublicMint(amount, { from: user, value: totalCost});
+
+            let balance = new BN(await STokencontract.balanceOf(user));
+            balance.should.be.bignumber.equal(amount);
+
+            let balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            let countPublicSale = new BN(await STokencontract.countPublicSale(user));
+            countPublicSale.should.be.bignumber.equal(new BN("1"));
+
+            //Public sale not started
+
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("1000")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("100")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePublicMint(amount, { from: user, value: totalCost}),
+                ErrorMsgs.publicSaleNotStarted
+            );
+
+            balance = new BN(await STokencontract.balanceOf(user));
+            balance.should.be.bignumber.equal(amount);
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            countPublicSale = new BN(await STokencontract.countPublicSale(user));
+            countPublicSale.should.be.bignumber.equal(new BN("1"));
+
+            //Public sale finish
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("1000")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.sub(new BN("100")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePublicMint(amount, { from: user, value: totalCost}),
+                ErrorMsgs.mintHasFinished
+            );
+
+            balance = new BN(await STokencontract.balanceOf(user));
+            balance.should.be.bignumber.equal(amount);
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            countPublicSale = new BN(await STokencontract.countPublicSale(user));
+            countPublicSale.should.be.bignumber.equal(new BN("1"));
+
+            //Account has reached the maximum number of public transfers allowed
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("1000")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.sub(new BN("100")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await STokencontract.safePublicMint(amount, { from: user, value: totalCost});
+
+            await expectRevert(
+                STokencontract.safePublicMint(amount, { from: user, value: totalCost}),
+                ErrorMsgs.maximumTransfersReachedPublic
+            );
+
+            balance = new BN(await STokencontract.balanceOf(user));
+            balance.should.be.bignumber.equal(new BN("10"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPublicSale = new BN(await STokencontract.countPublicSale(user));
+            countPublicSale.should.be.bignumber.equal(new BN("2"));
+
+            //Mint amount is bigger than supply left in private sale
+            amount = new BN("95")
+            totalCost = price.mul(amount);
+
+            await expectRevert(
+                STokencontract.safePublicMint(amount, { from: whitelisted, value: totalCost}),
+                ErrorMsgs.mintAmountBiggerSupplyleftPublic
+            );
+
+            balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(new BN("0"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPublicSale = new BN(await STokencontract.countPublicSale(whitelisted));
+            countPublicSale.should.be.bignumber.equal(new BN("0"));
+
+            //ETH sent amount underpriced
+            amount = new BN("5")
+            totalCost = price.mul(amount);
+
+            await expectRevert(
+                STokencontract.safePublicMint(amount, { from: whitelisted, value: totalCost.sub(new BN("10"))}),
+                ErrorMsgs.sentPriceUnderpriced
+            );
+
+            balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(new BN("0"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPublicSale = new BN(await STokencontract.countPublicSale(whitelisted));
+            countPublicSale.should.be.bignumber.equal(new BN("0"));
+        })
     })
 });

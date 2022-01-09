@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract SToken is ERC20, Ownable {
    uint256 constant public maxSupply = 100;
+   uint256 constant public tokensReward = 10;
    uint256 constant public maxAccountsPrivateSale = 10;
    uint256 constant public maxTokensPrivateSale = 40;
    uint256 constant public privatePrice = 50 ether;
@@ -81,6 +82,17 @@ contract SToken is ERC20, Ownable {
        _transfer(address(this), msg.sender, _mintAmount);
        countPrivateSale[msg.sender]++;
        maxTokensPrivateSaleCount = maxTokensPrivateSaleCount + _mintAmount;
+   }
+
+   function safePublicMint (uint256 _mintAmount) public payable{
+       require(block.timestamp > publicSaleTimestamp, "SToken: Public sale has not started yet");
+       require(block.timestamp < finishSaleTimestamp, "SToken: mint has finished");
+       require(countPublicSale[msg.sender] < maxTransferPublic,"SToken: Account has reached the maximum number of public transfers allowed");
+       require(maxTokensPrivateSaleCount+tokensReward+_mintAmount < maxSupply, "SToken: Mint amount is bigger than supply left");
+       require(msg.value >= publicPrice*_mintAmount, "SToken: ETH sent amount underpriced");
+
+       _transfer(address(this), msg.sender, _mintAmount);
+       countPublicSale[msg.sender]++;
    }
 
    //public transfer
