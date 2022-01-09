@@ -176,7 +176,7 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
             const currentTimestamp = await time.latest();
             const price = await STokencontract.privatePrice();
             let amount = new BN("5");
-            let totalCost = price*amount;
+            let totalCost = price.mul(amount);
             await STokencontract.addWhitelistedAccount(whitelisted, {from: owner});
             await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
             await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
@@ -282,7 +282,7 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
 
             //Mint amount is bigger than supply left in private sale
             amount = new BN("40");
-            totalCost = price*amount;
+            totalCost = price.mul(amount);
             await STokencontract.addWhitelistedAccount(whitelisted2, {from: owner});
             await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
             await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
@@ -442,6 +442,55 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
 
             countPublicSale = new BN(await STokencontract.countPublicSale(whitelisted));
             countPublicSale.should.be.bignumber.equal(new BN("0"));
+        })
+
+        it("private and public Mint", async () =>{
+            //private and public sales
+            const currentTimestamp = await time.latest();
+            const price = await STokencontract.privatePrice();
+            let amount = new BN("5");
+            let totalCost = price.mul(amount);
+            await STokencontract.addWhitelistedAccount(whitelisted, {from: owner});
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost});
+
+            amount = new BN("20");
+            totalCost = price.mul(amount);
+
+            await STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost});
+
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("100")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            const pricePublic = await STokencontract.publicPrice();
+            let amountPublic = new BN("5");
+            let totalCostPublic = pricePublic.mul(amount);
+
+            await STokencontract.safePublicMint(amountPublic, { from: whitelisted, value: totalCostPublic});
+
+            amountPublic = new BN("20");
+            totalCostPublic = pricePublic.mul(amount);
+
+            await STokencontract.safePublicMint(amountPublic, { from: whitelisted, value: totalCostPublic});
+
+            let balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(new BN("50"));
+
+            let balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("50"));
+
+            let countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted));
+            countPrivateSale.should.be.bignumber.equal(new BN("2"));
+
+            let countPublicSale = new BN(await STokencontract.countPublicSale(whitelisted));
+            countPublicSale.should.be.bignumber.equal(new BN("2"));
+
+            let maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(new BN("25"));
         })
     })
 });
