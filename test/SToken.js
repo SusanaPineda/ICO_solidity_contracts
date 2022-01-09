@@ -60,8 +60,16 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
             maxTransferPublic.should.be.bignumber.equal(new BN("10"));
 
             //only owner maxTransferPrivate
+            await expectRevert(
+                STokencontract.setMaxTransferPrivate(new BN("10"), { from: user }),
+                ErrorMsgs.onlyOwner
+            );
 
             //only owner maxTransferPublic
+            await expectRevert(
+                STokencontract.setMaxTransferPublic(new BN("10"), { from: user }),
+                ErrorMsgs.onlyOwner
+            );
         })
 
         it("Timestamp control", async () => {
