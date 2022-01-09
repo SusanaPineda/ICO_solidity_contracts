@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract SToken is ERC20, Ownable {
+contract SToken is ERC20Burnable, Ownable {
    uint256 constant public maxSupply = 100;
    uint256 constant public tokensReward = 10;
    uint256 constant public maxAccountsPrivateSale = 10;
@@ -94,9 +94,5 @@ contract SToken is ERC20, Ownable {
        _transfer(address(this), msg.sender, _mintAmount);
        countPublicSale[msg.sender]++;
    }
-
-   //public transfer
-
-   //public burn
-
+   
 }
