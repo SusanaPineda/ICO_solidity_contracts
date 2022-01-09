@@ -166,7 +166,7 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
         it("safePrivateMint", async () =>{
             //all ok
             const currentTimestamp = await time.latest();
-            let price = await STokencontract.privatePrice();
+            const price = await STokencontract.privatePrice();
             let amount = new BN("5");
             let totalCost = price*amount;
             await STokencontract.addWhitelistedAccount(whitelisted, {from: owner});
@@ -189,18 +189,133 @@ contract("SToken", ([owner, whitelisted, whitelisted2, whitelisted3, whitelisted
             maxTokensPrivateSaleCount.should.be.bignumber.equal(amount);
 
             //Private Sale not started
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.add(new BN("20")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost}),
+                ErrorMsgs.privateSaleNotStarted
+            );
+            
+            balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(amount);
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted));
+            countPrivateSale.should.be.bignumber.equal(new BN("1"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(amount);
 
             //Private Sale finish
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("200")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost}),
+                ErrorMsgs.privateSaleFinished
+            );
+            
+            balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(amount);
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted));
+            countPrivateSale.should.be.bignumber.equal(new BN("1"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(amount);
 
             //Account not whitelisted
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("20")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("1000")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: user, value: totalCost}),
+                ErrorMsgs.alreadyNotInWhitelist
+            );
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("95"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(amount);
 
             //Account has reached the maximum number of private transfers allowed
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("20")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost})
+
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: whitelisted, value: totalCost}),
+                ErrorMsgs.maximumTransfersReachedPrivate
+            );
+            
+            balance = new BN(await STokencontract.balanceOf(whitelisted));
+            balance.should.be.bignumber.equal(new BN("10"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted));
+            countPrivateSale.should.be.bignumber.equal(new BN("2"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(new BN("10"));
 
             //Mint amount is bigger than supply left in private sale
+            amount = new BN("40");
+            totalCost = price*amount;
+            await STokencontract.addWhitelistedAccount(whitelisted2, {from: owner});
+            await STokencontract.setPrivateSaleTimestamp(currentTimestamp.sub(new BN("10")), { from: owner })
+            await STokencontract.setPublicSaleTimestamp(currentTimestamp.add(new BN("10000")), { from: owner })
+            await STokencontract.setFinishSaleTimestamp(currentTimestamp.add(new BN("1000000")), { from: owner })
+
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: whitelisted2, value: totalCost}),
+                ErrorMsgs.mintAmountBiggerSupplyleftPrivate
+            );
+
+            balance = new BN(await STokencontract.balanceOf(whitelisted2));
+            balance.should.be.bignumber.equal(new BN("0"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted2));
+            countPrivateSale.should.be.bignumber.equal(new BN("0"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(new BN("10"));
 
             //ETH sent amount underpriced
+            amount = new BN("5");
 
-            //not contract address
+            await expectRevert(
+                STokencontract.safePrivateMint(amount, { from: whitelisted2, value: new BN("10")}),
+                ErrorMsgs.sentPriceUnderpriced
+            );
+
+            balance = new BN(await STokencontract.balanceOf(whitelisted2));
+            balance.should.be.bignumber.equal(new BN("0"));
+
+            balanceContract = new BN(await STokencontract.balanceOf(STokencontract.address));
+            balanceContract.should.be.bignumber.equal(new BN("90"));
+
+            countPrivateSale = new BN(await STokencontract.countPrivateSale(whitelisted2));
+            countPrivateSale.should.be.bignumber.equal(new BN("0"));
+
+            maxTokensPrivateSaleCount = new BN(await STokencontract.maxTokensPrivateSaleCount());
+            maxTokensPrivateSaleCount.should.be.bignumber.equal(new BN("10"));
         })
     })
 });
